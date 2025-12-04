@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>English Pilot: Tanya Edition v2</title>
+    <title>English Pilot: Tanya Edition v3</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f4f8; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; padding-top: 15px; box-sizing: border-box; }
         
@@ -133,8 +133,6 @@
 
 <script>
     // --- 1. ДАННЫЕ (Формат: EN | RU | TRANSCRIPTION) ---
-    // Транскрипция добавлена только в Пакеты 9 и 10 для примера.
-    // В старых пакетах она пустая, код это обработает.
     const rawData = [
         // Пакет 1: Основы (без транскрипции пока)
         "I|Я", "You|Ты/Вы", "He|Он", "She|Она", "It|Это/Оно", "We|Мы", "They|Они", "Yes|Да", "No|Нет", "And|И", 
@@ -143,21 +141,12 @@
         "When|Когда", "Why|Почему", "How|Как", "All|Все", "Some|Немного", "Many|Много", "Other|Другой", "Same|Такой же", "Very|Очень", "Really|Действительно",
         "With|С", "Without|Без", "For|Для", "From|От/Из", "To|В/К", "In|В", "On|На", "Under|Под", "Day|День", "Night|Ночь",
 
-        // Пакеты 2-8 оставлены как были (для экономии места - просто заглушки, чтобы индексы не съехали)
-        // ВАЖНО: Если вы хотите вернуть все слова, просто скопируйте их из прошлого файла.
-        // Я сократил список, чтобы код влез. НО структура сохранена.
         // Пакет 2
         "Be|Быть", "Do|Делать", "Have|Иметь", "Go|Идти", "See|Видеть", "Get|Получать", "Make|Создавать", "Know|Знать", "Think|Думать", "Take|Брать",
         "Come|Приходить", "Say|Сказать", "Put|Класть", "Want|Хотеть", "Give|Давать", "Look|Смотреть", "Find|Находить", "Need|Нуждаться", "Like|Нравиться", "Work|Работать",
         "Use|Использовать", "Help|Помогать", "Play|Играть", "Move|Двигаться", "Live|Жить", "Believe|Верить", "Bring|Приносить", "Happen|Случаться", "Write|Писать", "Read|Читать",
         "Speak|Говорить", "Hear|Слышать", "Meet|Встречать", "Run|Бежать", "Pay|Платить", "Sit|Сидеть", "Stand|Стоять", "Lose|Терять", "Win|Побеждать", "Learn|Учить",
         "Change|Менять", "Stop|Останавливать", "Open|Открывать", "Close|Закрывать", "Walk|Гулять", "Eat|Кушать", "Drink|Пить", "Sleep|Спать", "Buy|Покупать", "Sell|Продавать",
-        
-        // --- ДЛЯ ЭКОНОМИИ МЕСТА ПАКЕТЫ 3-8 ПРОПУЩЕНЫ В ЭТОМ ПРИМЕРЕ, 
-        // НО ЛОГИКА НИЖЕ СЧИТАЕТ, ЧТО ОНИ ЕСТЬ. 
-        // Если нужно, я могу скинуть полный текст, но сейчас фокус на новых пакетах.
-        
-        // ... (Imagine Packs 3-8 are here) ... 
         
         // --- ПАКЕТ 9: МАГАЗИН (С ТРАНСКРИПЦИЕЙ) ---
         "Shop|Магазин|Шоп", 
@@ -244,7 +233,7 @@
     let globalWordCounter = 0; 
     
     // Новые настройки
-    let speechRate = 0.8; // По умолчанию немного медленнее
+    let speechRate = 0.8; 
     let selectedVoiceIndex = 0;
     let voices = [];
 
@@ -254,40 +243,20 @@
 
     // --- 3. ЛОГИКА ПАРСИНГА ---
     function parseDataToCollections() {
-        const PACK_SIZE = 50; 
-        // (в реальной жизни можно делать меньше, если слов мало в пакете)
-        
         wordCollections = {};
-        
-        // Ручная настройка имен пакетов
         const packNames = {
             1: "Пакет 1: Основы",
             9: "Магазин (NEW)",
             10: "Числа (NEW)"
         };
 
-        // Мы используем "хитрый" счетчик, так как я удалил пакеты 3-8 из текста выше,
-        // но чтобы логика работала, будем просто последовательно заполнять.
-        // Но для правильной работы с rawData, где у нас разрыв, сделаем проще:
-        // Просто разобьем массив.
-        
         let currentPackNum = 1;
-        let currentPackCount = 0;
 
         rawData.forEach((item) => {
             const parts = item.split('|');
             const en = parts[0];
             const ru = parts[1];
-            const trans = parts[2] || ""; // Если транскрипции нет, будет пусто
-            
-            // Если в этом пакете уже > 40 слов, переходим к следующему (условно)
-            // Или можно жестко привязаться к индексам, но так гибче.
-            // Для демо (пакет 9 и 10) я просто определю их вручную по ключевым словам или положению.
-            // Давайте сделаем просто: все свалим в кучу и поделим, но дадим имена последним.
-            
-            // Упрощение: если в rawData будет 500 слов, логика index / 50 работает.
-            // Сейчас у нас разрыв. Давайте сделаем адаптивную логику.
-            // Если слово "Shop" - это начало магазина. Если "Zero" - начало чисел.
+            const trans = parts[2] || ""; 
             
             if (en === "Shop") currentPackNum = 9;
             if (en === "Zero") currentPackNum = 10;
@@ -297,7 +266,7 @@
             if (!wordCollections[key]) {
                 wordCollections[key] = {
                     name: packNames[currentPackNum] || `Пакет ${currentPackNum}`,
-                    active: currentPackNum === 9 || currentPackNum === 10, // Активны по умолчанию только новые
+                    active: currentPackNum === 9 || currentPackNum === 10,
                     words: []
                 };
             }
@@ -310,7 +279,6 @@
         parseDataToCollections();
         buildVocabulary();
         
-        // Загрузка голосов
         populateVoices();
         if (speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = populateVoices;
@@ -336,9 +304,8 @@
         loadWord(0);
     }
 
-    // Загрузка списка голосов в селект
     function populateVoices() {
-        voices = synth.getVoices().filter(v => v.lang.startsWith('en')); // Только английские
+        voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
         const select = document.getElementById('voiceSelect');
         select.innerHTML = '';
         
@@ -349,7 +316,6 @@
             select.appendChild(option);
         });
         
-        // Пытаемся выбрать "Google US English" или "Microsoft David" как дефолт
         const defaultIndex = voices.findIndex(v => v.name.includes('Google US') || v.name.includes('David'));
         if (defaultIndex !== -1) {
             select.selectedIndex = defaultIndex;
@@ -360,7 +326,6 @@
     function changeVoice() {
         const select = document.getElementById('voiceSelect');
         selectedVoiceIndex = select.value;
-        // Тест голоса
         const utter = new SpeechSynthesisUtterance("Hello");
         utter.voice = voices[selectedVoiceIndex];
         utter.rate = speechRate;
@@ -374,7 +339,6 @@
 
     function buildVocabulary() {
         activeVocabulary = [];
-        // Сортируем ключи, чтобы пакеты шли по порядку
         const sortedKeys = Object.keys(wordCollections).sort((a,b) => {
             return parseInt(a.replace('pack','')) - parseInt(b.replace('pack',''));
         });
@@ -385,7 +349,6 @@
             }
         }
         
-        // Перемешать слова
         activeVocabulary.sort(() => Math.random() - 0.5);
         if (activeVocabulary.length === 0) {
             activeVocabulary = [{en: "Select a Pack", ru: "Выберите пакет в настройках", trans: ""}];
@@ -417,10 +380,9 @@
 
         if (currentMode === 'speak') {
             mainEl.innerText = item.en;
-            transEl.innerText = item.trans ? `[ ${item.trans} ]` : ""; // Показываем транскрипцию
+            transEl.innerText = item.trans ? `[ ${item.trans} ]` : "";
             subEl.innerText = item.ru;
         } else {
-            // Режим теста
             mainEl.innerText = "???"; 
             transEl.innerText = "";
             subEl.innerText = "Как переводится это слово?";
@@ -432,12 +394,10 @@
         document.getElementById('progressBar').style.width = `${progress}%`;
     }
 
-    // --- 6. АУДИО (ОБНОВЛЕНО: БЕЗ ЗАДЕРЖКИ И С НАСТРОЙКАМИ) ---
+    // --- 6. АУДИО ---
     function playCurrentWord(playRussianToo = false) {
         const item = activeVocabulary[currentIndex];
-        
         speakEnglish(item.en);
-        
         if (playRussianToo) {
             speakRussian(item.ru);
         }
@@ -455,13 +415,10 @@
 
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'en-US';
-        utter.rate = speechRate; // Используем настройку скорости
-        
-        // Применяем выбранный голос
+        utter.rate = speechRate;
         if (voices[selectedVoiceIndex]) {
             utter.voice = voices[selectedVoiceIndex];
         }
-
         if (callback) utter.onend = callback;
         synth.speak(utter);
     }
@@ -487,8 +444,10 @@
 
         if (cleanSpoken.includes(cleanTarget) || cleanTarget.includes(cleanSpoken)) {
             updateStatus(`Верно! (${spoken})`, "success");
+            speakRussian("Хорошо"); // ХВАЛИМ
         } else {
             updateStatus(`Услышал: ${spoken}`, "error");
+            speakEnglish(activeVocabulary[currentIndex].en); // ИСПРАВЛЯЕМ (говорим правильное слово)
         }
     }
 
@@ -518,9 +477,11 @@
             document.getElementById('mainWordDisplay').innerText = correct.en;
             if (correct.trans) document.getElementById('transcriptionDisplay').innerText = `[ ${correct.trans} ]`;
             updateStatus("Правильно!", "success");
+            speakRussian("Хорошо"); // ХВАЛИМ
         } else {
             btn.classList.add('wrong');
             updateStatus("Не совсем...", "error");
+            speakEnglish(correct.en); // ИСПРАВЛЯЕМ
         }
     }
 
