@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Pilot: Tanya Edition</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f4f8; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; padding-top: 20px; box-sizing: border-box; }
+        
+        /* Верхняя панель */
+        .top-bar { display: flex; justify-content: space-between; width: 90%; max-width: 400px; margin-bottom: 20px; align-items: center; }
+        .mode-switch { background: #fff; padding: 5px; border-radius: 20px; display: flex; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .mode-btn { border: none; background: none; padding: 8px 15px; border-radius: 15px; cursor: pointer; font-size: 14px; opacity: 0.6; transition: 0.3s; }
+        .mode-btn.active { background-color: #e3f2fd; color: #1565c0; font-weight: bold; opacity: 1; }
+        .settings-btn { background: none; border: none; font-size: 24px; cursor: pointer; }
+
+        /* Карточка */
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; transition: all 0.3s ease; position: relative; }
+        
+        .main-word { color: #333; font-size: 2.2rem; margin: 15px 0; min-height: 50px; font-weight: bold; word-wrap: break-word;}
+        .sub-word { color: #888; font-size: 1.2rem; margin-bottom: 25px; min-height: 28px; }
+        
+        /* Кнопки */
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 1.1rem; cursor: pointer; transition: transform 0.1s; position: relative; }
+        .btn:active { transform: scale(0.98); }
+        .btn-listen { background-color: #e3f2fd; color: #1565c0; margin-bottom: 20px; }
+        .btn-speak { background-color: #ffebee; color: #c62828; font-weight: bold; font-size: 1.3rem; padding: 20px; border-radius: 50px; width: 80px; height: 80px; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(198, 40, 40, 0.3); }
+        .btn-speak.listening { animation: pulse 1.5s infinite; background-color: #ffcdd2; }
+        
+        /* Кнопки вариантов ответа (для викторины) */
+        .quiz-option { background-color: #f5f5f5; color: #333; text-align: left; padding-left: 20px; border: 2px solid transparent; }
+        .quiz-option.correct { background-color: #c8e6c9; border-color: #4caf50; }
+        .quiz-option.wrong { background-color: #ffcdd2; border-color: #e53935; }
+
+        .btn-next { background-color: #fff; border: 2px solid #e8f5e9; color: #2e7d32; margin-top: 25px; font-weight: bold; }
+
+        /* Статус и прогресс */
+        .status { margin-top: 15px; font-weight: bold; height: 24px; font-size: 0.95rem; }
+        .status.success { color: #2e7d32; }
+        .status.error { color: #c62828; }
+        .progress-container { width: 100%; background-color: #eee; height: 6px; margin-top: 25px; border-radius: 3px; }
+        .progress-bar { height: 100%; background-color: #4caf50; width: 0%; border-radius: 3px; transition: width 0.3s; }
+
+        /* Модальное окно настроек */
+        #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 350px; max-height: 80vh; overflow-y: auto; }
+        .category-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .hidden { display: none !important; }
+        
+        .counter-debug { font-size: 10px; color: #ccc; position: absolute; bottom: 5px; right: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="mode-switch">
+        <button class="mode-btn active" id="modeSpeak" onclick="setMode('speak')">🎙️ Говорить</button>
+        <button class="mode-btn" id="modeQuiz" onclick="setMode('quiz')">🧠 Тест</button>
+    </div>
+    <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+</div>
+
+<div class="card">
+    <div class="translation" id="subWordDisplay">...</div>
+    <div class="main-word" id="mainWordDisplay">Loading...</div>
+
+    <button class="btn btn-listen" onclick="playCurrentWord(true)">👂 Послушать (EN + RU)</button>
+
+    <div id="speakContainer">
+        <button class="btn btn-speak" id="micBtn" onclick="startListening()">🎙️</button>
+        <div style="margin-top: 10px; color: #666; font-size: 0.9rem;">Нажми и назови слово</div>
+    </div>
+
+    <div id="quizContainer" class="hidden">
+        <div id="quizOptions"></div>
+    </div>
+    
+    <div class="status" id="statusMessage"></div>
+    
+    <button class="btn btn-next" onclick="nextWord()">Дальше ➡️</button>
+    
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="counter-debug" id="debugCounter">0</div>
+</div>
+
+<div id="settingsModal">
+    <div class="modal-content">
+        <h2>Выберите пакеты</h2>
+        <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Включите нужные пакеты слов:</p>
+        <div id="categoriesList"></div>
+        <button class="btn btn-listen" style="margin-top: 20px;" onclick="saveSettings()">Сохранить и закрыть</button>
+    </div>
+</div>
+
+<script>
+    // --- 1. БАЗА ДАННЫХ (Сжатый формат) ---
+    // 300 слов (6 пакетов по 50).
+    const rawData = [
+        // Пакет 1: Основы (0-49)
+        "I|Я", "You|Ты/Вы", "He|Он", "She|Она", "It|Это/Оно", "We|Мы", "They|Они", "Yes|Да", "No|Нет", "And|И", 
+        "But|Но", "Or|Или", "Because|Потому что", "Hello|Привет", "Goodbye|Пока", "Please|Пожалуйста", "Thanks|Спасибо", "Good|Хороший", "Bad|Плохой", "Big|Большой",
+        "Small|Маленький", "Now|Сейчас", "Later|Позже", "Here|Здесь", "There|Там", "This|Этот", "That|Тот", "Who|Кто", "What|Что", "Where|Где",
+        "When|Когда", "Why|Почему", "How|Как", "All|Все", "Some|Немного", "Many|Много", "Other|Другой", "Same|Такой же", "Very|Очень", "Really|Действительно",
+        "With|С", "Without|Без", "For|Для", "From|От/Из", "To|В/К", "In|В", "On|На", "Under|Под", "Day|День", "Night|Ночь",
+
+        // Пакет 2: Глаголы (50-99)
+        "Be|Быть", "Do|Делать", "Have|Иметь", "Go|Идти", "See|Видеть", "Get|Получать", "Make|Создавать", "Know|Знать", "Think|Думать", "Take|Брать",
+        "Come|Приходить", "Say|Сказать", "Put|Класть", "Want|Хотеть", "Give|Давать", "Look|Смотреть", "Find|Находить", "Need|Нуждаться", "Like|Нравиться", "Work|Работать",
+        "Use|Использовать", "Help|Помогать", "Play|Играть", "Move|Двигаться", "Live|Жить", "Believe|Верить", "Bring|Приносить", "Happen|Случаться", "Write|Писать", "Read|Читать",
+        "Speak|Говорить", "Hear|Слышать", "Meet|Встречать", "Run|Бежать", "Pay|Платить", "Sit|Сидеть", "Stand|Стоять", "Lose|Терять", "Win|Побеждать", "Learn|Учить",
+        "Change|Менять", "Stop|Останавливать", "Open|Открывать", "Close|Закрывать", "Walk|Гулять", "Eat|Кушать", "Drink|Пить", "Sleep|Спать", "Buy|Покупать", "Sell|Продавать",
+
+        // Пакет 3: Люди (100-149)
+        "Family|Семья", "Man|Мужчина", "Woman|Женщина", "Boy|Мальчик", "Girl|Девочка", "Child|Ребенок", "Parent|Родитель", "Mother|Мама", "Father|Папа", "Husband|Муж",
+        "Wife|Жена", "Son|Сын", "Daughter|Дочь", "Brother|Брат", "Sister|Сестра", "Friend|Друг", "Person|Человек", "People|Люди", "Name|Имя", "Job|Работа",
+        "Doctor|Врач", "Teacher|Учитель", "Student|Студент", "Boss|Начальник", "King|Король", "Queen|Королева", "Team|Команда", "Group|Группа", "Baby|Младенец", "Guest|Гость",
+        "Body|Тело", "Head|Голова", "Hand|Рука (кисть)", "Arm|Рука (вся)", "Leg|Нога", "Foot|Стопа", "Eye|Глаз", "Face|Лицо", "Mouth|Рот", "Smile|Улыбка",
+        "Heart|Сердце", "Brain|Мозг", "Hair|Волосы", "Voice|Голос", "Health|Здоровье", "Sick|Больной", "Strong|Сильный", "Weak|Слабый", "Life|Жизнь", "Death|Смерть",
+
+        // Пакет 4: Еда (150-199)
+        "Food|Еда", "Water|Вода", "Bread|Хлеб", "Meat|Мясо", "Fish|Рыба", "Fruit|Фрукт", "Vegetable|Овощ", "Apple|Яблоко", "Banana|Банан", "Orange|Апельсин",
+        "Potato|Картошка", "Tomato|Помидор", "Egg|Яйцо", "Cheese|Сыр", "Milk|Молоко", "Coffee|Кофе", "Tea|Чай", "Sugar|Сахар", "Salt|Соль", "Soup|Суп",
+        "Breakfast|Завтрак", "Lunch|Обед", "Dinner|Ужин", "Knife|Нож", "Fork|Вилка", "Spoon|Ложка", "Plate|Тарелка", "Cup|Чашка", "Bottle|Бутылка", "Glass|Стакан",
+        "Table|Стол", "Restaurant|Ресторан", "Menu|Меню", "Order|Заказ", "Cook|Готовить", "Taste|Вкус", "Sweet|Сладкий", "Sour|Кислый", "Fresh|Свежий", "Hot|Горячий",
+        "Cold|Холодный", "Ice|Лёд", "Cake|Торт", "Cookie|Печенье", "Beer|Пиво", "Wine|Вино", "Juice|Сок", "Oil|Масло", "Pepper|Перец", "Chicken|Курица",
+
+        // Пакет 5: Дом (200-249)
+        "House|Дом", "Home|Домашний очаг", "Room|Комната", "Bedroom|Спальня", "Kitchen|Кухня", "Bathroom|Ванная", "Door|Дверь", "Window|Окно", "Floor|Пол", "Wall|Стена",
+        "Roof|Крыша", "Garden|Сад", "Key|Ключ", "Bed|Кровать", "Chair|Стул", "Sofa|Диван", "Lamp|Лампа", "Light|Свет", "Picture|Картина", "Mirror|Зеркало",
+        "Box|Коробка", "Bag|Сумка", "Computer|Компьютер", "Phone|Телефон", "Paper|Бумага", "Pen|Ручка", "Book|Книга", "Clock|Часы", "Watch|Наручные часы", "Radio|Радио",
+        "TV|Телевизор", "Music|Музыка", "Song|Песня", "Clean|Чистый", "Dirty|Грязный", "Wash|Мыть", "Shower|Душ", "Soap|Мыло", "Towel|Полотенце", "Toilet|Туалет",
+        "Trash|Мусор", "Tool|Инструмент", "Fire|Огонь", "City|Город", "Street|Улица", "Road|Дорога", "Car|Машина", "Bus|Автобус", "Train|Поезд", "Plane|Самолет",
+
+        // Пакет 6: Прилагательные и Природа (250-299)
+        "Happy|Счастливый", "Sad|Грустный", "Angry|Злой", "Kind|Добрый", "Rich|Богатый", "Poor|Бедный", "Fast|Быстрый", "Slow|Медленный", "Hard|Тяжелый/Твердый", "Soft|Мягкий",
+        "Easy|Легкий", "Difficult|Сложный", "True|Правдивый", "False|Ложный", "Right|Правый/Верный", "Left|Левый", "High|Высокий", "Low|Низкий", "Long|Длинный", "Short|Короткий",
+        "New|Новый", "Old|Старый", "Young|Молодой", "Beautiful|Красивый", "Ugly|Уродливый", "Red|Красный", "Blue|Синий", "Green|Зеленый", "Yellow|Желтый", "Black|Черный",
+        "White|Белый", "Sun|Солнце", "Moon|Луна", "Star|Звезда", "Sky|Небо", "Cloud|Облако", "Rain|Дождь", "Snow|Снег", "Wind|Ветер", "Tree|Дерево",
+        "Flower|Цветок", "Grass|Трава", "Bird|Птица", "Dog|Собака", "Cat|Кот", "Animal|Животное", "Sea|Море", "River|Река", "World|Мир", "Map|Карта"
+    ];
+
+    // --- 2. ЛОГИКА ПРИЛОЖЕНИЯ ---
+    
+    let wordCollections = {}; // Будет заполнено из rawData
+    let activeVocabulary = [];
+    let currentIndex = 0;
+    let currentMode = 'speak'; // 'speak' or 'quiz'
+    
+    // Счетчик для шутки
+    let globalWordCounter = 0; 
+    
+    const synth = window.speechSynthesis;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+
+    // Парсинг данных (Создаем пакеты по 50 слов)
+    function parseDataToCollections() {
+        const PACK_SIZE = 50;
+        
+        // Очистка
+        wordCollections = {};
+
+        rawData.forEach((item, index) => {
+            const parts = item.split('|');
+            const packNum = Math.floor(index / PACK_SIZE) + 1;
+            const key = "pack" + packNum;
+
+            if (!wordCollections[key]) {
+                // Пакет 1 активен по умолчанию, остальные нет
+                wordCollections[key] = {
+                    name: `Пакет ${packNum} (${(packNum-1)*PACK_SIZE} - ${packNum*PACK_SIZE})`,
+                    active: packNum === 1, 
+                    words: []
+                };
+            }
+            wordCollections[key].words.push({ en: parts[0], ru: parts[1] });
+        });
+    }
+
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    function init() {
+        parseDataToCollections();
+        buildVocabulary();
+        renderSettings();
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.onstart = () => {
+                document.getElementById('micBtn').classList.add('listening');
+                updateStatus("Слушаю...", "waiting");
+            };
+            recognition.onend = () => {
+                document.getElementById('micBtn').classList.remove('listening');
+            };
+            recognition.onresult = handleSpeechResult;
+            recognition.onerror = (e) => updateStatus("Ошибка распознавания", "error");
+        }
+        
+        loadWord(0);
+    }
+
+    function buildVocabulary() {
+        activeVocabulary = [];
+        for (let key in wordCollections) {
+            if (wordCollections[key].active) {
+                activeVocabulary = activeVocabulary.concat(wordCollections[key].words);
+            }
+        }
+        // Перемешать слова
+        activeVocabulary.sort(() => Math.random() - 0.5);
+        if (activeVocabulary.length === 0) {
+            activeVocabulary = [{en: "Select a Pack", ru: "Выберите пакет в настройках"}];
+        }
+    }
+
+    // --- ЛОГИКА ОТОБРАЖЕНИЯ ---
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('modeSpeak').className = mode === 'speak' ? 'mode-btn active' : 'mode-btn';
+        document.getElementById('modeQuiz').className = mode === 'quiz' ? 'mode-btn active' : 'mode-btn';
+        
+        document.getElementById('speakContainer').className = mode === 'speak' ? '' : 'hidden';
+        document.getElementById('quizContainer').className = mode === 'quiz' ? '' : 'hidden';
+        
+        loadWord(currentIndex); // Перерисовать текущее слово под режим
+    }
+
+    function loadWord(index) {
+        currentIndex = index;
+        const item = activeVocabulary[currentIndex];
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.innerText = "";
+        statusEl.className = "status";
+
+        const mainEl = document.getElementById('mainWordDisplay');
+        const subEl = document.getElementById('subWordDisplay');
+
+        if (currentMode === 'speak') {
+            mainEl.innerText = item.en;
+            subEl.innerText = item.ru;
+            // В режиме говорения сразу НЕ произносим (ждем действий)
+        } else {
+            // Режим теста
+            mainEl.innerText = "???"; 
+            subEl.innerText = "Как переводится это слово?";
+            generateQuizButtons(item);
+            // В тесте полезно сразу озвучить слово
+            speakEnglish(item.en);
+        }
+        
+        const progress = ((index + 1) / activeVocabulary.length) * 100;
+        document.getElementById('progressBar').style.width = `${progress}%`;
+        document.getElementById('debugCounter').innerText = globalWordCounter;
+    }
+    // --- АУДИО ---
+	function playCurrentWord(playRussianToo = false) {
+        const item = activeVocabulary[currentIndex];
+        
+        // Сначала запускаем английский (внутри speakEnglish есть очистка очереди)
+        speakEnglish(item.en); 
+
+        // Сразу же добавляем в очередь русский. 
+        // Мы убрали callback (стрелочную функцию), поэтому паузы не будет.
+        if (playRussianToo) {
+            speakRussian(item.ru);
+        }
+    }
+
+    function speakEnglish(text, callback) {
+        if (synth.speaking) synth.cancel();
+
+        // ЛОГИКА ШУТКИ: Если счетчик делится на 20, вставляем шутку перед словом
+        if (globalWordCounter > 0 && globalWordCounter % 20 === 0) {
+            const jokeUtter = new SpeechSynthesisUtterance("Как тебе с мужем повезло, Таня");
+            jokeUtter.lang = 'ru-RU';
+            jokeUtter.rate = 1.1;
+            
+            const wordUtter = new SpeechSynthesisUtterance(text);
+            wordUtter.lang = 'en-US';
+            wordUtter.rate = 0.9;
+            if (callback) wordUtter.onend = callback;
+
+            // Очередь воспроизведения
+            synth.speak(jokeUtter);
+            synth.speak(wordUtter);
+        } else {
+            // Обычное воспроизведение
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = 0.9;
+            if (callback) utter.onend = callback;
+            synth.speak(utter);
+        }
+    }
+
+    function speakRussian(text) {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ru-RU'; 
+        utter.rate = 1.0;
+        synth.speak(utter);
+    }
+
+    // --- РАСПОЗНАВАНИЕ (Режим 1) ---
+    function startListening() {
+        if (!recognition) {
+            alert("Ваш браузер не поддерживает распознавание."); 
+            return;
+        }
+        recognition.start();
+    }
+
+    function handleSpeechResult(event) {
+        const spoken = event.results[0][0].transcript.toLowerCase();
+        const target = activeVocabulary[currentIndex].en.toLowerCase();
+        
+        // Убираем знаки препинания
+        const cleanSpoken = spoken.replace(/[^a-z]/g, '');
+        const cleanTarget = target.replace(/[^a-z]/g, '');
+
+        if (cleanSpoken.includes(cleanTarget) || cleanTarget.includes(cleanSpoken)) {
+            updateStatus(`Верно! (${spoken})`, "success");
+        } else {
+            updateStatus(`Услышал: ${spoken}`, "error");
+        }
+    }
+
+    // --- ВИКТОРИНА (Режим 2) ---
+    function generateQuizButtons(correctItem) {
+        const container = document.getElementById('quizOptions');
+        container.innerHTML = '';
+        
+        // Берем 2 неправильных варианта
+        let options = [correctItem];
+        let pool = activeVocabulary.filter(w => w.en !== correctItem.en);
+        
+        if (pool.length < 2) pool = pool.concat(pool); // Защита от малого кол-ва слов
+
+        pool.sort(() => Math.random() - 0.5);
+        options.push(pool[0]);
+        if (pool[1]) options.push(pool[1]);
+
+        options.sort(() => Math.random() - 0.5);
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn quiz-option';
+            btn.innerText = opt.ru;
+            btn.onclick = () => checkQuizAnswer(btn, opt, correctItem);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkQuizAnswer(btn, selected, correct) {
+        if (selected.en === correct.en) {
+            btn.classList.add('correct');
+            document.getElementById('mainWordDisplay').innerText = correct.en;
+            updateStatus("Правильно!", "success");
+        } else {
+            btn.classList.add('wrong');
+            updateStatus("Не совсем...", "error");
+        }
+    }
+
+    // --- НАВИГАЦИЯ ---
+    function nextWord() {
+        // Увеличиваем счетчик при переходе к следующему слову
+        globalWordCounter++;
+        
+        let newIndex = currentIndex + 1;
+        if (newIndex >= activeVocabulary.length) newIndex = 0;
+        loadWord(newIndex);
+    }
+
+    function updateStatus(text, type) {
+        const el = document.getElementById('statusMessage');
+        el.innerText = text;
+        el.className = "status " + type;
+    }
+
+    // --- НАСТРОЙКИ ---
+    function toggleSettings() {
+        const modal = document.getElementById('settingsModal');
+        modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function renderSettings() {
+        const list = document.getElementById('categoriesList');
+        list.innerHTML = '';
+        // Сортируем ключи, чтобы pack1, pack2 шли по порядку
+        const sortedKeys = Object.keys(wordCollections).sort((a,b) => {
+            return parseInt(a.replace('pack','')) - parseInt(b.replace('pack',''));
+        });
+
+        for (let key of sortedKeys) {
+            const cat = wordCollections[key];
+            const div = document.createElement('div');
+            div.className = 'category-item';
+            div.innerHTML = `
+                <span>${cat.name}</span>
+                <label class="switch">
+                    <input type="checkbox" id="cat_${key}" ${cat.active ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            `;
+            list.appendChild(div);
+        }
+    }
+
+    function saveSettings() {
+        for (let key in wordCollections) {
+            const checkbox = document.getElementById(`cat_${key}`);
+            wordCollections[key].active = checkbox.checked;
+        }
+        buildVocabulary();
+        toggleSettings();
+        globalWordCounter = 0; // Сброс счетчика при смене настроек (опционально)
+        loadWord(0);
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
