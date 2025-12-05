@@ -436,18 +436,26 @@
         recognition.start();
     }
 
-    function handleSpeechResult(event) {
+	function handleSpeechResult(event) {
+        // Получаем то, что услышал телефон, и приводим к нижнему регистру
         const spoken = event.results[0][0].transcript.toLowerCase();
+        // Берем загаданное слово
         const target = activeVocabulary[currentIndex].en.toLowerCase();
+        
+        // Очищаем от всего, кроме букв (убираем пробелы, точки, запятые)
+        // Например: "it is" -> "itis"
         const cleanSpoken = spoken.replace(/[^a-z]/g, '');
         const cleanTarget = target.replace(/[^a-z]/g, '');
 
-        if (cleanSpoken.includes(cleanTarget) || cleanTarget.includes(cleanSpoken)) {
+        // СТРОГАЯ ПРОВЕРКА:
+        // Теперь мы требуем полного совпадения (===) вместо частичного (includes)
+        if (cleanSpoken === cleanTarget) {
             updateStatus(`Верно! (${spoken})`, "success");
-            speakRussian("Хорошо"); // ХВАЛИМ
+            speakRussian("Хорошо"); 
         } else {
+            // Если не совпало идеально
             updateStatus(`Услышал: ${spoken}`, "error");
-            speakEnglish(activeVocabulary[currentIndex].en); // ИСПРАВЛЯЕМ (говорим правильное слово)
+            speakEnglish(activeVocabulary[currentIndex].en); 
         }
     }
 
